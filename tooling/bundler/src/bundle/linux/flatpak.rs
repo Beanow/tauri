@@ -20,6 +20,8 @@ struct ManifestMap {
   app_id: String,
   app_name: String,
   main_binary: String,
+  deb_package_name: String,
+  project_out_directory: String,
   binary: Vec<String>,
 }
 
@@ -79,10 +81,23 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   // Create the map for the manifest template file
+  let arch = match settings.binary_arch() {
+    "x86" => "i386",
+    "x86_64" => "amd64",
+    other => other,
+  };
+
   let data = ManifestMap {
+    project_out_directory: settings.project_out_directory().to_string_lossy().into(),
     app_id: settings.bundle_identifier().to_string(),
     app_name: settings.product_name().to_string(),
     main_binary: settings.main_binary_name().to_string(),
+    deb_package_name: format!(
+      "{}_{}_{}",
+      settings.main_binary_name(),
+      settings.version_string(),
+      arch
+    ),
     binary: binary_installs,
   };
 
@@ -103,16 +118,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Step 1b: Generate the Cargo sources file for the manifest
   //
 
-  fs::write(
-    &flatpak_cargo_generator_path,
-    include_str!("flatpak/flatpak-cargo-generator.py"),
-  )?;
+  // fs::write(
+  //   &flatpak_cargo_generator_path,
+  //   include_str!("flatpak/flatpak-cargo-generator.py"),
+  // )?;
 
-  Command::new("python3")
-    .arg(&flatpak_cargo_generator_path)
-    .arg("-o")
-    .arg(&output_dir.join("generated-sources.json"))
-    .arg("Cargo.lock") // TODO: Use absolute path to `Cargo.lock`
+  // Include submodule with common packages.
+  Command::new("git")
+    .arg("submodule")
+    .arg("add")
+    .arg("-f")
+    .arg("https://github.com/flathub/shared-modules.git")
+    .current_dir(&output_dir)
     .output_ok()
     .context("failed to generate Cargo sources file for Flatpak manifest")?;
 
