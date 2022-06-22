@@ -18,8 +18,8 @@ mod windows;
 pub use self::{
   category::AppCategory,
   settings::{
-    BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings, PackageType,
-    Settings, SettingsBuilder, UpdaterSettings,
+    BundleBinary, BundleSettings, DebianSettings, FlatpakSettings, MacOsSettings, PackageSettings,
+    PackageType, Settings, SettingsBuilder, UpdaterSettings,
   },
 };
 use log::{info, warn};

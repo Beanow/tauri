@@ -111,6 +111,16 @@ pub struct DebConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+/// Configuration for Flatpak (.flatpak) bundles.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FlatpakConfig {
+  /// The working directory that should be copied into the flatpak sandbox to compile your application (relative to the current working directory).
+  pub workdir: Option<PathBuf>,
+}
+
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
   D: Deserializer<'de>,
@@ -343,6 +353,9 @@ pub struct BundleConfig {
   /// Configuration for the Debian bundle.
   #[serde(default)]
   pub deb: DebConfig,
+  /// Configuration for the Flatpak bundle.
+  #[serde(default)]
+  pub flatpak: FlatpakConfig,
   /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", default)]
   pub macos: MacConfig,
@@ -2748,6 +2761,7 @@ mod build {
       let long_description = quote!(None);
       let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
+      let flatpak = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
@@ -2766,6 +2780,7 @@ mod build {
         long_description,
         appimage,
         deb,
+        flatpak,
         macos,
         external_bin,
         windows
@@ -3169,6 +3184,7 @@ mod test {
         long_description: None,
         appimage: Default::default(),
         deb: Default::default(),
+        flatpak: Default::default(),
         macos: Default::default(),
         external_bin: None,
         windows: Default::default(),

@@ -22,7 +22,12 @@ struct ManifestMap {
   main_binary: String,
   deb_package_name: String,
   project_out_directory: String,
+  cargo_cache_dir: String,
+  yarn_cache_dir: String,
+  workdir: String,
+  local_dir: String,
   binary: Vec<String>,
+  skip_list: Vec<String>,
 }
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -37,38 +42,64 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Step 1a: Generate the Flapak manifest file
   //
 
+  let workdir = settings.flatpak().workdir.as_ref().expect("You didn't do it").canonicalize().unwrap();
+  info!(action = "Flatpak workdir"; "Your workdir is {}", &workdir.to_string_lossy().to_string());
+
   // Location for build artifacts (Flatpak manifest and bundle)
   let output_dir = settings.project_out_directory().join("bundle/flatpak");
+  // Workspace for local (.flatpak) builds.
+  let local_dir = output_dir.join("local");
+  let local_build_dir = output_dir.join("local_build");
+
   // Location for build files (Flatpak repo, build directory, etc.)
-  let build_dir = settings
-    .project_out_directory()
-    .join("bundle/flatpak_build");
+  // let build_dir = settings
+  //   .project_out_directory()
+  //   .join("bundle/flatpak_build");
 
   // Location of Flatpak manifest file
-  let manifest_path = output_dir.join(format!("{}.json", settings.bundle_identifier()));
+  let manifest_path = local_dir.join(format!("{}.json", settings.bundle_identifier()));
+
   // Location of flatpak-cargo-generator.py script
-  let flatpak_cargo_generator_path = build_dir.join("flatpak-cargo-generator.py");
+  // let flatpak_cargo_generator_path = build_dir.join("flatpak-cargo-generator.py");
+
   // Location of Flatpak repository
-  let flatpak_repository_dir = build_dir.join("repo");
+  let flatpak_repository_dir = output_dir.join("repo");
+
   // Name of Flatpak single-file bundle
   let bundle_name = format!("{}.flatpak", settings.bundle_identifier());
+
   // Location of Flatpak single-file bundle
   let flatpak_bundle_path = output_dir.join(&bundle_name);
 
+  // Place we can store caches for our build process
+  let cache_dir = dirs_next::cache_dir().map_or_else(
+    || output_dir.to_path_buf(),
+    |mut p| {
+      p.push("tauri");
+      p.push("flatpak");
+      p
+    },
+  );
+  let cargo_cache_dir = cache_dir.join("cargo");
+  let yarn_cache_dir = cache_dir.join("yarn");
+
   // Start with clean build and output directories
-  if output_dir.exists() {
-    fs::remove_dir_all(&output_dir)?;
+  if local_dir.exists() {
+    fs::remove_dir_all(&local_dir)?;
   }
-  if build_dir.exists() {
-    fs::remove_dir_all(&build_dir)?;
+  if local_build_dir.exists() {
+    fs::remove_dir_all(&local_build_dir)?;
   }
-  fs::create_dir_all(&output_dir)?;
-  fs::create_dir_all(&build_dir)?;
+  // fs::create_dir_all(&output_dir)?;
+  fs::create_dir_all(&local_dir)?;
+  fs::create_dir_all(&cargo_cache_dir)?;
+  fs::create_dir_all(&yarn_cache_dir)?;
+  // fs::create_dir_all(&build_dir)?;
 
   // Generate the desktop and icon files on the host
   // It's easier to do it here than in the sandbox
-  generate_desktop_file(&settings, &output_dir)?;
-  generate_icon_files(&settings, &output_dir)?;
+  generate_desktop_file(&settings, &local_dir)?;
+  generate_icon_files(&settings, &local_dir)?;
 
   // Get the name of each binary that should be installed
   let mut binary_installs = Vec::new();
@@ -87,17 +118,54 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     other => other,
   };
 
+  // Find our skip list. As type: dir sources don't support .gitignore or **/globstar type filters, use GNU find for this.
+  let skip_list = Command::new("find")
+    .arg(&workdir)
+    .args([
+      "-type",
+      "d",
+      "(",
+      "-iname",
+      ".git",
+      "-o",
+      "-iname",
+      "node_modules",
+      "-o",
+      "-iname",
+      "target",
+      ")",
+      "-prune",
+      "-exec",
+      "realpath",
+      "{}",
+      "+",
+    ])
+    .output_ok()
+    .expect("Failed skip list, find command");
+
+  let skip_list = std::str::from_utf8(&skip_list.stdout)
+    .expect("Skip list stdout could not be converted to utf8")
+    .split('\n')
+    .filter(|&s| s != "")
+    .map(|s| s.to_string())
+    .collect::<Vec<String>>();
+
   let data = ManifestMap {
     project_out_directory: settings.project_out_directory().to_string_lossy().into(),
     app_id: settings.bundle_identifier().to_string(),
     app_name: settings.product_name().to_string(),
     main_binary: settings.main_binary_name().to_string(),
+    cargo_cache_dir: cargo_cache_dir.to_string_lossy().into(),
+    yarn_cache_dir: yarn_cache_dir.to_string_lossy().into(),
+    local_dir: local_dir.to_string_lossy().into(),
+    workdir: workdir.to_string_lossy().into(),
     deb_package_name: format!(
       "{}_{}_{}",
       settings.main_binary_name(),
       settings.version_string(),
       arch
     ),
+    skip_list: skip_list,
     binary: binary_installs,
   };
 
@@ -129,7 +197,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .arg("add")
     .arg("-f")
     .arg("https://github.com/flathub/shared-modules.git")
-    .current_dir(&output_dir)
+    .current_dir(&local_dir)
     .output_ok()
     .context("failed to generate Cargo sources file for Flatpak manifest")?;
 
@@ -140,10 +208,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Command::new("flatpak-builder")
     .arg(format!(
       "--state-dir={}/.flatpak-builder",
-      &build_dir.display()
+      &output_dir.display()
     ))
     .arg(format!("--repo={}", &flatpak_repository_dir.display()))
-    .arg(format!("{}/build", &build_dir.display()))
+    .arg(&local_build_dir)
     .arg(&manifest_path)
     .output_ok()
     .context("failed to build Flatpak")?;

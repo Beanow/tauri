@@ -1,41 +1,102 @@
 {
-    "app-id": "{{app_id}}",
-    "runtime": "org.gnome.Platform",
-    "runtime-version": "42",
-    "sdk": "org.gnome.Sdk",
-    "command": "{{main_binary}}",
-    "finish-args": [
-        "--share=ipc",
-        "--socket=x11",
-        "--socket=wayland",
-        "--socket=pulseaudio",
-        "--device=dri",
-        "--env=LD_LIBRARY_PATH=/app/lib",
-        "--talk-name=org.freedesktop.Notifications",
-        "--talk-name=org.kde.StatusNotifierWatcher",
-        "--talk-name=com.canonical.AppMenu.Registrar",
-        "--talk-name=com.canonical.indicator.application",
-        "--talk-name=com.canonical.Unity.LauncherEntry"
+  "app-id": "{{app_id}}",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "42",
+  "sdk": "org.gnome.Sdk",
+  "sdk-extensions": [
+    "org.freedesktop.Sdk.Extension.node18",
+    "org.freedesktop.Sdk.Extension.rust-stable"
+  ],
+  "command": "{{main_binary}}",
+  "finish-args": [
+    "--share=ipc",
+    "--socket=x11",
+    "--socket=wayland",
+    "--socket=pulseaudio",
+    "--device=dri",
+    "--env=LD_LIBRARY_PATH=/app/lib",
+    "--talk-name=org.freedesktop.Notifications",
+    "--talk-name=org.kde.StatusNotifierWatcher",
+    "--talk-name=com.canonical.AppMenu.Registrar",
+    "--talk-name=com.canonical.indicator.application",
+    "--talk-name=com.canonical.Unity.LauncherEntry"
+  ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node18/bin",
+    "build-args": [
+      "--share=network"
     ],
-    "rename-desktop-file": "{{main_binary}}.desktop",
-    "rename-icon": "{{main_binary}}",
-    "modules": [
-        "shared-modules/libappindicator/libappindicator-gtk3-12.10.json",
+    "env": {
+      "RUST_BACKTRACE": "1",
+      "RUST_LOG": "{{main_binary}}=debug"
+    }
+  },
+  "rename-desktop-file": "{{main_binary}}.desktop",
+  "rename-icon": "{{main_binary}}",
+  "modules": [
+    {
+      "name": "cargo-tauri",
+      "buildsystem": "simple",
+      "build-options": {
+        "append-path": "/run/build/cargo/bin",
+        "env": {
+          "CARGO_HOME": "/run/build/cargo"
+        },
+        "build-args": [
+          "--bind-mount=/run/build/cargo={{cargo_cache_dir}}"
+        ]
+      },
+      "build-commands": [
+        "cargo install tauri-cli --version '^1.0.0'"
+      ]
+    },
+    "shared-modules/libappindicator/libappindicator-gtk3-12.10.json",
+    {
+      "name": "{{app_id}}",
+      "buildsystem": "simple",
+      "build-options": {
+        "append-path": "/run/build/cargo/bin",
+        "env": {
+          "CARGO_HOME": "/run/build/cargo",
+          "YARN_CACHE_FOLDER": "/run/build/yarn"
+        },
+        "build-args": [
+          "--bind-mount=/run/build/cargo={{cargo_cache_dir}}",
+          "--bind-mount=/run/build/yarn={{yarn_cache_dir}}"
+        ]
+      },
+      "sources": [
         {
-            "name": "{{app_id}}",
-            "buildsystem": "simple",
-            "sources": [
-                {
-                    "type": "file",
-                    "dest-filename": "{{main_binary}}.deb",
-                    "path": "{{project_out_directory}}/bundle/deb/{{deb_package_name}}.deb"
-                }
-            ],
-            "build-commands": [
-                "ar x {{main_binary}}.deb",
-                "tar xf data.tar.{x,g}z deb_data",
-                "cp -r deb_data/usr/* /app"
-            ]
+          "type": "dir",
+          "path": "{{workdir}}",
+          "skip": [
+            {{#each skip_list}}
+            "{{this}}"{{#unless @last}},{{/unless}}
+            {{/each}}
+          ]
         }
-    ]
+      ],
+      "build-commands": [
+        "cd tooling/api; yarn; yarn build",
+        "cd tooling/cli; cargo install --path .",
+        "cd examples/api; yarn; cargo tauri build --verbose --bundles none",
+        {{#each binary}}
+        "install -Dm755 examples/api/src-tauri/target/release/{{this}} /app/bin/{{this}}"
+        {{/each}}
+      ]
+    },
+    {
+      "name": "generated-assets",
+      "buildsystem": "simple",
+      "sources": [
+        {
+          "type": "dir",
+          "path": "{{local_dir}}"
+        }
+      ],
+      "build-commands": [
+        "cp -r usr/* /app"
+      ]
+    }
+  ]
 }

@@ -124,6 +124,7 @@
           "deb": {
             "files": {}
           },
+          "flatpak": {},
           "icon": [],
           "identifier": "",
           "macOS": {
@@ -254,6 +255,7 @@
             "deb": {
               "files": {}
             },
+            "flatpak": {},
             "icon": [],
             "identifier": "",
             "macOS": {
@@ -607,7 +609,7 @@
           "type": "boolean"
         },
         "theme": {
-          "description": "The initial window theme. Defaults to the system theme. Only implemented on Windows and macOs 10.14+.",
+          "description": "The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.",
           "anyOf": [
             {
               "$ref": "#/definitions/Theme"
@@ -983,6 +985,15 @@
             }
           ]
         },
+        "flatpak": {
+          "description": "Configuration for the Flatpak bundle.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/FlatpakConfig"
+            }
+          ]
+        },
         "macOS": {
           "description": "Configuration for the macOS bundles.",
           "default": {
@@ -1073,6 +1084,20 @@
           "additionalProperties": {
             "type": "string"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "FlatpakConfig": {
+      "description": "Configuration for Flatpak (.flatpak) bundles.",
+      "type": "object",
+      "properties": {
+        "workdir": {
+          "description": "The working directory that should be copied into the flatpak sandbox to compile your application (relative to the current working directory).",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

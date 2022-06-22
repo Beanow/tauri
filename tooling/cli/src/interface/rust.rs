@@ -25,8 +25,8 @@ use crate::{
   CommandExt,
 };
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, FlatpakSettings, MacOsSettings,
+  PackageSettings, UpdaterSettings, WindowsSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -485,6 +485,9 @@ fn tauri_config_to_bundle_settings(
         Some(depends)
       },
       files: config.deb.files,
+    },
+    flatpak: FlatpakSettings {
+      workdir: config.flatpak.workdir,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,

@@ -139,6 +139,14 @@ pub struct DebianSettings {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+/// The Linux flatpak bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct FlatpakSettings {
+  // OS-specific settings:
+  /// The working directory that should be copied into the flatpak sandbox to compile your application (relative to the current working directory).
+  pub workdir: Option<PathBuf>,
+}
+
 /// The macOS bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct MacOsSettings {
@@ -310,6 +318,8 @@ pub struct BundleSettings {
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// Flatpak-specific settings.
+  pub flatpak: FlatpakSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
   /// Updater configuration.
@@ -696,6 +706,11 @@ impl Settings {
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+
+  /// Returns the flatpak settings.
+  pub fn flatpak(&self) -> &FlatpakSettings {
+    &self.bundle_settings.flatpak
   }
 
   /// Returns the MacOS settings.
