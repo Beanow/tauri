@@ -26,3 +26,7 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+
+[patch.crates-io]
+# libappindicator = { path = "../../../../libappindicator-rs" }
+libappindicator-sys = { git = "https://github.com/Beanow/libappindicator-rs.git", branch = "fix/linker" }
