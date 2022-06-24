@@ -144,7 +144,20 @@ pub struct DebianSettings {
 pub struct FlatpakSettings {
   // OS-specific settings:
   /// The working directory that should be copied into the flatpak sandbox to compile your application (relative to the current working directory).
-  pub workdir: Option<PathBuf>,
+  pub workdir: PathBuf,
+  /// When set to true, will skip installing the tauri-cli cargo crate and will use `yarn tauri ...` commands instead. Defaults to false.
+  /// Note: you must add the `@tauri-apps/cli` package to your (dev)dependencies in package.json for this to work.
+  pub use_node_cli: bool,
+  /// Cargo argument for the tauri-cli crate to use in the flatpak. For example `--version '^1.0.0'` or `--git "https://..."`.
+  /// Defaults to the same version as the host machine. This is ignored when setting `use_node_cli: true`
+  pub tauri_cli_version: String,
+  /// The app directory relative path from the flatpak workdir. (Automatically generated).
+  pub rel_app_dir: PathBuf,
+  /// The Tauri directory relative path from the flatpak workdir. (Automatically generated).
+  pub rel_tauri_dir: PathBuf,
+  /// Paths in the working directory that should not be copied into the flatpak sandbox.
+  /// Mainly to avoid wildgrowth of intermediate build results like `target` and `node_modules`.
+  pub skip_list: Vec<PathBuf>,
 }
 
 /// The macOS bundle settings.

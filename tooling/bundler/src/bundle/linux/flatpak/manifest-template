@@ -34,22 +34,6 @@
   "rename-desktop-file": "{{main_binary}}.desktop",
   "rename-icon": "{{main_binary}}",
   "modules": [
-    {
-      "name": "cargo-tauri",
-      "buildsystem": "simple",
-      "build-options": {
-        "append-path": "/run/build/cargo/bin",
-        "env": {
-          "CARGO_HOME": "/run/build/cargo"
-        },
-        "build-args": [
-          "--bind-mount=/run/build/cargo={{cargo_cache_dir}}"
-        ]
-      },
-      "build-commands": [
-        "cargo install tauri-cli --version '^1.0.0'"
-      ]
-    },
     "shared-modules/libappindicator/libappindicator-gtk3-12.10.json",
     {
       "name": "{{app_id}}",
@@ -77,11 +61,15 @@
         }
       ],
       "build-commands": [
-        "cd tooling/api; yarn; yarn build",
-        "cd tooling/cli; cargo install --path .",
-        "cd examples/api; yarn; cargo tauri build --verbose --bundles none",
+        {{#if use_node_cli}}
+        "cd {{rel_app_dir}}; yarn; yarn tauri build --verbose --bundles none",
+        {{else}}
+        "cargo install tauri-cli {{{tauri_cli_version}}}",
+        "cd {{rel_app_dir}}; yarn",
+        "cd {{rel_tauri_dir}}; cargo tauri build --verbose --bundles none",
+        {{/if}}
         {{#each binary}}
-        "install -Dm755 examples/api/src-tauri/target/release/{{this}} /app/bin/{{this}}"
+        "install -Dm755 {{../rel_project_out_directory}}/{{this}} /app/bin/{{this}}"
         {{/each}}
       ]
     },

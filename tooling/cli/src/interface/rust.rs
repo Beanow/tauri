@@ -13,12 +13,12 @@ use std::{
 use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
-use log::warn;
+use log::{debug, warn};
 use serde::Deserialize;
 
 use crate::{
   helpers::{
-    app_paths::tauri_dir,
+    app_paths::{app_dir, tauri_dir},
     config::{wix_settings, Config},
     manifest::Manifest,
   },
@@ -388,6 +388,72 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
   current_dir.to_path_buf()
 }
 
+fn get_flatpak_default_tauri_cli_version() -> crate::Result<String> {
+  #[cfg(not(debug_assertions))]
+  {
+    crate::info::cli_current_version()
+  }
+
+  #[cfg(debug_assertions)]
+  {
+    Err(anyhow::anyhow!(
+      "tauri-cli version can't be detected with a debug build"
+    ))
+  }
+}
+
+/// Walks the filesystem, starting from the `flatpak_workdir` matching files/directories that shouldn't
+/// be copied into the flatpak workdir. Currently this matched `target` and `node_modules`.
+/// - `node_modules` just to save some space/time in copying it.
+/// - `target` is more important, because we will copy files _into_ `target`, so it would be recursively
+///   copying the project, quickly growing out of hand.
+/// Note: we don't need to, and _shouldn't_ filter too much here. It's main use is to avoid a wildgrowth of identical copies.
+/// Filtering too much (like using .gitignore) may discard artifacts from earlier build steps that should have copied to the flatpak.
+fn get_flatpak_skip_list(flatpak_workdir: &Path) -> crate::Result<Vec<PathBuf>> {
+  let mut cmd = Command::new("find");
+  cmd.arg(&flatpak_workdir);
+  cmd.args([
+    "-type",
+    "d",
+    "(",
+    "-iname",
+    ".git",
+    "-o",
+    "-iname",
+    "node_modules",
+    "-o",
+    "-iname",
+    "target",
+    ")",
+    "-prune",
+    "-exec",
+    "realpath",
+    "{}",
+    "+",
+  ]);
+
+  let program = cmd.get_program().to_string_lossy().into_owned();
+  let args = cmd
+    .get_args()
+    .map(|arg| arg.to_string_lossy())
+    .fold(String::new(), |acc, arg| format!("{} {}", acc, arg));
+
+  debug!(action = "Running"; "Command `{} {}`", program, args);
+
+  let skip_list = cmd.output()?;
+  if skip_list.status.success() {
+    let skip_list = String::from_utf8_lossy(&skip_list.stdout)
+      .split('\n')
+      .filter(|&s| s != "")
+      .map(|s| PathBuf::from(s))
+      .collect::<Vec<PathBuf>>();
+
+    return Ok(skip_list);
+  } else {
+    return Err(anyhow::anyhow!("failed to run {:?}", skip_list));
+  }
+}
+
 #[allow(unused_variables)]
 fn tauri_config_to_bundle_settings(
   manifest: &Manifest,
@@ -414,6 +480,11 @@ fn tauri_config_to_bundle_settings(
   let mut resources = config.resources.unwrap_or_default();
   #[allow(unused_mut)]
   let mut depends = config.deb.depends.unwrap_or_default();
+  // TODO: review if supressing warnings makes sense here.
+  let mut flatpak_workdir = config.flatpak.workdir.clone().unwrap_or_default();
+  let mut flatpak_skip_list = Default::default();
+  let mut flatpak_rel_app_dir = PathBuf::from("");
+  let mut flatpak_rel_tauri_dir = PathBuf::from("");
 
   #[cfg(target_os = "linux")]
   {
@@ -430,6 +501,20 @@ fn tauri_config_to_bundle_settings(
     // provides `libwebkit2gtk-4.0.so.37` and all `4.0` versions have the -37 package name
     depends.push("libwebkit2gtk-4.0-37".to_string());
     depends.push("libgtk-3-0".to_string());
+
+    flatpak_workdir = config.flatpak.workdir.map_or_else(
+      || app_dir().to_path_buf(),
+      |workdir| {
+        workdir
+          .canonicalize()
+          .expect("Could not canonicalize flatpak workdir")
+          .to_path_buf()
+      },
+    );
+
+    flatpak_rel_app_dir = app_dir().strip_prefix(&flatpak_workdir)?.to_path_buf();
+    flatpak_rel_tauri_dir = tauri_dir().strip_prefix(&flatpak_workdir)?.to_path_buf();
+    flatpak_skip_list = get_flatpak_skip_list(&flatpak_workdir)?;
   }
 
   #[cfg(windows)]
@@ -487,7 +572,18 @@ fn tauri_config_to_bundle_settings(
       files: config.deb.files,
     },
     flatpak: FlatpakSettings {
-      workdir: config.flatpak.workdir,
+      workdir: flatpak_workdir,
+      use_node_cli: config.flatpak.use_node_cli,
+      tauri_cli_version: config.flatpak.tauri_cli_version.unwrap_or_else(|| {
+        format!(
+          "--version '{}'",
+          get_flatpak_default_tauri_cli_version()
+            .expect("Couldn't detect version to use for flatpak.tauri_cli_version")
+        )
+      }),
+      rel_app_dir: flatpak_rel_app_dir,
+      rel_tauri_dir: flatpak_rel_tauri_dir,
+      skip_list: flatpak_skip_list,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,

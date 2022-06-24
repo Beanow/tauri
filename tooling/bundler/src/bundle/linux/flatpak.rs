@@ -26,8 +26,13 @@ struct ManifestMap {
   yarn_cache_dir: String,
   workdir: String,
   local_dir: String,
+  rel_app_dir: String,
+  rel_tauri_dir: String,
+  rel_project_out_directory: String,
   binary: Vec<String>,
   skip_list: Vec<String>,
+  use_node_cli: bool,
+  tauri_cli_version: String,
 }
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
@@ -42,7 +47,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Step 1a: Generate the Flapak manifest file
   //
 
-  let workdir = settings.flatpak().workdir.as_ref().expect("You didn't do it").canonicalize().unwrap();
+  let workdir = &settings.flatpak().workdir;
+  let skip_list = &settings.flatpak().skip_list;
+  let rel_project_out_directory = settings
+    .project_out_directory()
+    .strip_prefix(&workdir)?
+    .to_path_buf();
+
   info!(action = "Flatpak workdir"; "Your workdir is {}", &workdir.to_string_lossy().to_string());
 
   // Location for build artifacts (Flatpak manifest and bundle)
@@ -118,38 +129,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     other => other,
   };
 
-  // Find our skip list. As type: dir sources don't support .gitignore or **/globstar type filters, use GNU find for this.
-  let skip_list = Command::new("find")
-    .arg(&workdir)
-    .args([
-      "-type",
-      "d",
-      "(",
-      "-iname",
-      ".git",
-      "-o",
-      "-iname",
-      "node_modules",
-      "-o",
-      "-iname",
-      "target",
-      ")",
-      "-prune",
-      "-exec",
-      "realpath",
-      "{}",
-      "+",
-    ])
-    .output_ok()
-    .expect("Failed skip list, find command");
-
-  let skip_list = std::str::from_utf8(&skip_list.stdout)
-    .expect("Skip list stdout could not be converted to utf8")
-    .split('\n')
-    .filter(|&s| s != "")
-    .map(|s| s.to_string())
-    .collect::<Vec<String>>();
-
   let data = ManifestMap {
     project_out_directory: settings.project_out_directory().to_string_lossy().into(),
     app_id: settings.bundle_identifier().to_string(),
@@ -158,6 +137,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     cargo_cache_dir: cargo_cache_dir.to_string_lossy().into(),
     yarn_cache_dir: yarn_cache_dir.to_string_lossy().into(),
     local_dir: local_dir.to_string_lossy().into(),
+    rel_app_dir: settings.flatpak().rel_app_dir.to_string_lossy().into(),
+    rel_tauri_dir: settings.flatpak().rel_tauri_dir.to_string_lossy().into(),
+    rel_project_out_directory: rel_project_out_directory.to_string_lossy().into(),
     workdir: workdir.to_string_lossy().into(),
     deb_package_name: format!(
       "{}_{}_{}",
@@ -165,8 +147,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       settings.version_string(),
       arch
     ),
-    skip_list: skip_list,
+    skip_list: skip_list
+      .iter()
+      .map(|p| p.to_string_lossy().to_string())
+      .collect(),
     binary: binary_installs,
+    use_node_cli: settings.flatpak().use_node_cli,
+    tauri_cli_version: settings.flatpak().tauri_cli_version.to_string(),
   };
 
   // Render the manifest template

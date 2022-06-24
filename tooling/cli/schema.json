@@ -124,7 +124,9 @@
           "deb": {
             "files": {}
           },
-          "flatpak": {},
+          "flatpak": {
+            "useNodeCli": false
+          },
           "icon": [],
           "identifier": "",
           "macOS": {
@@ -255,7 +257,9 @@
             "deb": {
               "files": {}
             },
-            "flatpak": {},
+            "flatpak": {
+              "useNodeCli": false
+            },
             "icon": [],
             "identifier": "",
             "macOS": {
@@ -987,7 +991,9 @@
         },
         "flatpak": {
           "description": "Configuration for the Flatpak bundle.",
-          "default": {},
+          "default": {
+            "useNodeCli": false
+          },
           "allOf": [
             {
               "$ref": "#/definitions/FlatpakConfig"
@@ -1094,6 +1100,18 @@
       "properties": {
         "workdir": {
           "description": "The working directory that should be copied into the flatpak sandbox to compile your application (relative to the current working directory).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "useNodeCli": {
+          "description": "When set to true, will skip installing the tauri-cli cargo crate and will use `yarn tauri ...` commands instead. Defaults to false. Note: you must add the `@tauri-apps/cli` package to your (dev)dependencies in package.json for this to work.",
+          "default": false,
+          "type": "boolean"
+        },
+        "tauriCliVersion": {
+          "description": "Cargo argument for the tauri-cli crate to use in the flatpak. For example `--version '^1.0.0'` or `--git \"https://...\"`. Defaults to the same version as the host machine. This is ignored when setting `use_node_cli: true`",
           "type": [
             "string",
             "null"
