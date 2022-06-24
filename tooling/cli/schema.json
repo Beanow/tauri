@@ -1072,6 +1072,7 @@
       "type": "string",
       "enum": [
         "deb",
+        "flatpak",
         "appimage",
         "msi",
         "app",

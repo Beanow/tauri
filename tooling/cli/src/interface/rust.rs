@@ -21,8 +21,8 @@ use log::{debug, warn};
 use serde::Deserialize;
 use shared_child::SharedChild;
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, FlatpakSettings, MacOsSettings,
+  PackageSettings, UpdaterSettings, WindowsSettings,
 };
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
@@ -33,11 +33,6 @@ use crate::{
     manifest::Manifest,
   },
   CommandExt,
-};
-
-use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, FlatpakSettings, MacOsSettings,
-  PackageSettings, UpdaterSettings, WindowsSettings,
 };
 
 #[derive(Debug, Clone)]

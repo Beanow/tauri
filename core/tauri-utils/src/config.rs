@@ -72,6 +72,8 @@ impl Default for WindowUrl {
 pub enum BundleType {
   /// The debian bundle (.deb).
   Deb,
+  /// The flatpak bundle (.flatpak).
+  Flatpak,
   /// The AppImage bundle (.appimage).
   AppImage,
   /// The Microsoft Installer bundle (.msi).
@@ -91,6 +93,7 @@ impl Display for BundleType {
       "{}",
       match self {
         Self::Deb => "deb",
+        Self::Flatpak => "flatpak",
         Self::AppImage => "appimage",
         Self::Msi => "msi",
         Self::App => "app",
@@ -118,6 +121,7 @@ impl<'de> Deserialize<'de> for BundleType {
     let s = String::deserialize(deserializer)?;
     match s.to_lowercase().as_str() {
       "deb" => Ok(Self::Deb),
+      "flatpak" => Ok(Self::Flatpak),
       "appimage" => Ok(Self::AppImage),
       "msi" => Ok(Self::Msi),
       "app" => Ok(Self::App),

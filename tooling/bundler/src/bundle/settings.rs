@@ -42,6 +42,7 @@ impl From<BundleType> for PackageType {
   fn from(bundle: BundleType) -> Self {
     match bundle {
       BundleType::Deb => Self::Deb,
+      BundleType::Flatpak => Self::Flatpak,
       BundleType::AppImage => Self::AppImage,
       BundleType::Msi => Self::WindowsMsi,
       BundleType::App => Self::MacOsBundle,

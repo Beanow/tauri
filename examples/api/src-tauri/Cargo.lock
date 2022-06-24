@@ -1591,8 +1591,7 @@ dependencies = [
 [[package]]
 name = "libappindicator-sys"
 version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a0e019ae1a736a858f4c52b58af2ca6e797f27d7fe534e8a56776d74a8f2535"
+source = "git+https://github.com/Beanow/libappindicator-rs.git?branch=fix/linker#3290335710ea0ec34e9d34c1811c0e443a9dc1e4"
 dependencies = [
  "gtk-sys",
  "libloading",
