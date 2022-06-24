@@ -513,7 +513,13 @@ fn tauri_config_to_bundle_settings(
     );
 
     flatpak_rel_app_dir = app_dir().strip_prefix(&flatpak_workdir)?.to_path_buf();
+    if flatpak_rel_app_dir == PathBuf::from("") {
+      flatpak_rel_app_dir = PathBuf::from(".")
+    }
     flatpak_rel_tauri_dir = tauri_dir().strip_prefix(&flatpak_workdir)?.to_path_buf();
+    if flatpak_rel_tauri_dir == PathBuf::from("") {
+      flatpak_rel_tauri_dir = PathBuf::from(".")
+    }
     flatpak_skip_list = get_flatpak_skip_list(&flatpak_workdir)?;
   }
 
