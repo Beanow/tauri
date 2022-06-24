@@ -119,6 +119,12 @@ pub struct DebConfig {
 pub struct FlatpakConfig {
   /// The working directory that should be copied into the flatpak sandbox to compile your application (relative to the current working directory).
   pub workdir: Option<PathBuf>,
+  /// When set to true, will skip installing the tauri-cli cargo crate and will use `yarn tauri ...` commands instead. Defaults to false.
+  /// Note: you must add the `@tauri-apps/cli` package to your (dev)dependencies in package.json for this to work.
+  pub use_node_cli: bool,
+  /// Cargo argument for the tauri-cli crate to use in the flatpak. For example `--version '^1.0.0'` or `--git "https://..."`.
+  /// Defaults to the same version as the host machine. This is ignored when setting `use_node_cli: true`
+  pub tauri_cli_version: Option<String>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
