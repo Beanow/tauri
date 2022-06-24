@@ -39,14 +39,15 @@
       "name": "{{app_id}}",
       "buildsystem": "simple",
       "build-options": {
-        "append-path": "/run/build/cargo/bin",
+        "append-path": "/run/cache/cargo/bin",
         "env": {
-          "CARGO_HOME": "/run/build/cargo",
-          "YARN_CACHE_FOLDER": "/run/build/yarn"
+          "CARGO_HOME": "/run/cache/cargo",
+          "YARN_CACHE_FOLDER": "/run/cache/yarn"
         },
         "build-args": [
-          "--bind-mount=/run/build/cargo={{cargo_cache_dir}}",
-          "--bind-mount=/run/build/yarn={{yarn_cache_dir}}"
+          "--bind-mount=/run/cache/cargo={{cargo_cache_dir}}",
+          "--bind-mount=/run/cache/yarn={{yarn_cache_dir}}",
+          "--bind-mount=/run/build/{{app_id}}/{{rel_tauri_dir}}/target={{target_cache_dir}}"
         ]
       },
       "sources": [

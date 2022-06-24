@@ -24,6 +24,7 @@ struct ManifestMap {
   project_out_directory: String,
   cargo_cache_dir: String,
   yarn_cache_dir: String,
+  target_cache_dir: String,
   workdir: String,
   local_dir: String,
   rel_app_dir: String,
@@ -83,16 +84,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let flatpak_bundle_path = output_dir.join(&bundle_name);
 
   // Place we can store caches for our build process
-  let cache_dir = dirs_next::cache_dir().map_or_else(
-    || output_dir.to_path_buf(),
-    |mut p| {
-      p.push("tauri");
-      p.push("flatpak");
-      p
-    },
-  );
+  let cache_dir = output_dir.join(".cache");
   let cargo_cache_dir = cache_dir.join("cargo");
   let yarn_cache_dir = cache_dir.join("yarn");
+  let target_cache_dir = cache_dir.join("target");
 
   // Start with clean build and output directories
   if local_dir.exists() {
@@ -105,6 +100,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs::create_dir_all(&local_dir)?;
   fs::create_dir_all(&cargo_cache_dir)?;
   fs::create_dir_all(&yarn_cache_dir)?;
+  fs::create_dir_all(&target_cache_dir)?;
   // fs::create_dir_all(&build_dir)?;
 
   // Generate the desktop and icon files on the host
@@ -136,6 +132,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     main_binary: settings.main_binary_name().to_string(),
     cargo_cache_dir: cargo_cache_dir.to_string_lossy().into(),
     yarn_cache_dir: yarn_cache_dir.to_string_lossy().into(),
+    target_cache_dir: target_cache_dir.to_string_lossy().into(),
     local_dir: local_dir.to_string_lossy().into(),
     rel_app_dir: settings.flatpak().rel_app_dir.to_string_lossy().into(),
     rel_tauri_dir: settings.flatpak().rel_tauri_dir.to_string_lossy().into(),
