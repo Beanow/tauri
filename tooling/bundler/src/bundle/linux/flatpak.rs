@@ -191,6 +191,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   //
 
   Command::new("flatpak-builder")
+    .arg("--user")
+    .arg(format!("--install-deps-from={}", "flathub")) //TODO: configureable remote
     .arg(format!(
       "--state-dir={}/.flatpak-builder",
       &output_dir.display()
