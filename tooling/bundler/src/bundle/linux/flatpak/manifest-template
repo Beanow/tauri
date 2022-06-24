@@ -64,7 +64,7 @@
         {{#if use_node_cli}}
         "cd {{rel_app_dir}}; yarn; yarn tauri build --verbose --bundles none",
         {{else}}
-        "cargo install tauri-cli {{{tauri_cli_version}}}",
+        "cargo tauri --version || cargo install tauri-cli {{{tauri_cli_version}}}",
         "cd {{rel_app_dir}}; yarn",
         "cd {{rel_tauri_dir}}; cargo tauri build --verbose --bundles none",
         {{/if}}
