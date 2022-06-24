@@ -180,9 +180,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Include submodule with common packages.
   Command::new("git")
-    .arg("submodule")
-    .arg("add")
-    .arg("-f")
+    .arg("clone")
     .arg("https://github.com/flathub/shared-modules.git")
     .current_dir(&local_dir)
     .output_ok()
