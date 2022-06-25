@@ -77,8 +77,22 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Location of Flatpak repository
   let flatpak_repository_dir = output_dir.join("repo");
 
+  // Create the map for the manifest template file
+  let arch = match settings.binary_arch() {
+    "x86" => "i386",
+    "x86_64" => "amd64",
+    other => other,
+  };
+
   // Name of Flatpak single-file bundle
-  let bundle_name = format!("{}.flatpak", settings.bundle_identifier());
+  let package_base_name = format!(
+    "{}_{}_{}",
+    settings.main_binary_name(),
+    settings.version_string(),
+    arch
+  );
+
+  let bundle_name = format!("{}.flatpak", package_base_name);
 
   // Location of Flatpak single-file bundle
   let flatpak_bundle_path = output_dir.join(&bundle_name);
@@ -117,13 +131,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for external_binary in settings.external_binaries() {
     dbg!(&external_binary);
   }
-
-  // Create the map for the manifest template file
-  let arch = match settings.binary_arch() {
-    "x86" => "i386",
-    "x86_64" => "amd64",
-    other => other,
-  };
 
   let data = ManifestMap {
     project_out_directory: settings.project_out_directory().to_string_lossy().into(),
