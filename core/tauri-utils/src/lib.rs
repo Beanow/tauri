@@ -10,6 +10,9 @@ use std::fmt::Display;
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+#[cfg(target_os = "linux")]
+pub mod flatpak;
+
 pub mod assets;
 pub mod config;
 pub mod html;
@@ -105,6 +108,9 @@ pub struct Env {
   /// The APPDIR environment variable.
   #[cfg(target_os = "linux")]
   pub appdir: Option<std::ffi::OsString>,
+  /// Flatpak sandbox information from the `/.flatpak-info` file.
+  #[cfg(target_os = "linux")]
+  pub flatpak_info: Option<flatpak::FlatpakInfo>,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -112,11 +118,20 @@ impl Default for Env {
   fn default() -> Self {
     #[cfg(target_os = "linux")]
     {
+      let flatpak_info = flatpak::FlatpakInfo::try_load().unwrap_or_else(|_| {
+        panic!(
+          "`{}` file exists, but could not be read; this might be a security issue.",
+          flatpak::WELL_KNOWN_PATH
+        )
+      });
+
       let env = Self {
         #[cfg(target_os = "linux")]
         appimage: std::env::var_os("APPIMAGE"),
         #[cfg(target_os = "linux")]
         appdir: std::env::var_os("APPDIR"),
+        #[cfg(target_os = "linux")]
+        flatpak_info: flatpak_info,
       };
       if env.appimage.is_some() || env.appdir.is_some() {
         // validate that we're actually running on an AppImage

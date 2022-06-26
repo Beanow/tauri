@@ -37,6 +37,7 @@ semver = "1"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
+glib = "0.15"
 
 [features]
 build = [ "proc-macro2", "quote" ]
