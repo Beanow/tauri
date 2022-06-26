@@ -28,6 +28,8 @@ use tauri_runtime::{SystemTray, SystemTrayEvent};
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
+#[cfg(all(feature = "system-tray", target_os = "linux"))]
+use wry::application::platform::linux::SystemTrayBuilderExtLinux;
 #[cfg(target_os = "macos")]
 use wry::application::platform::macos::WindowBuilderExtMacOS;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
@@ -37,6 +39,8 @@ use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 
+#[cfg(feature = "system-tray")]
+use tauri_utils::Env;
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
@@ -1939,7 +1943,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(feature = "system-tray")]
-  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
+  fn system_tray(&self, system_tray: SystemTray, env: &Env) -> Result<Self::TrayHandler> {
     let icon = TrayIcon::try_from(system_tray.icon.expect("tray icon not set"))?;
 
     let mut items = HashMap::new();
@@ -1955,6 +1959,13 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     #[cfg(target_os = "macos")]
     {
       tray_builder = tray_builder.with_icon_as_template(system_tray.icon_as_template);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+      if let Some(dir) = env.override_tray_temp_icon_dir() {
+        tray_builder = tray_builder.with_temp_icon_dir(dir);
+      }
     }
 
     let tray = tray_builder

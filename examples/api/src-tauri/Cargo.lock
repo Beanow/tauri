@@ -3072,8 +3072,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bfe4c782f0543f667ee3b732d026b2f1c64af39cd52e726dec1ea1f2d8f6b80"
+source = "git+https://github.com/tauri-apps/tao.git?branch=dev#ce209d39ab21e493ba98bab83aa7827fa05d7050"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -3082,6 +3081,7 @@ dependencies = [
  "core-foundation",
  "core-graphics",
  "crossbeam-channel",
+ "dirs-next",
  "dispatch",
  "gdk",
  "gdk-pixbuf",
@@ -3109,24 +3109,11 @@ dependencies = [
  "raw-window-handle",
  "scopeguard",
  "serde",
- "tao-core-video-sys",
  "unicode-segmentation",
  "uuid 0.8.2",
  "windows 0.37.0",
  "windows-implement",
  "x11-dl",
-]
-
-[[package]]
-name = "tao-core-video-sys"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "271450eb289cb4d8d0720c6ce70c72c8c858c93dd61fc625881616752e6b98f6"
-dependencies = [
- "cfg-if",
- "core-foundation-sys",
- "libc",
- "objc",
 ]
 
 [[package]]
@@ -3258,6 +3245,7 @@ dependencies = [
  "http",
  "http-range",
  "infer 0.7.0",
+ "raw-window-handle",
  "serde",
  "serde_json",
  "tauri-utils",
@@ -3275,6 +3263,7 @@ dependencies = [
  "gtk",
  "percent-encoding",
  "rand 0.8.5",
+ "raw-window-handle",
  "tauri-runtime",
  "tauri-utils",
  "uuid 1.1.2",
@@ -3292,6 +3281,7 @@ dependencies = [
  "brotli",
  "ctor",
  "getrandom 0.2.7",
+ "glib",
  "glob",
  "heck 0.4.0",
  "html5ever",

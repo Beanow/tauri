@@ -11,6 +11,9 @@ use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use uuid::Uuid;
 
+#[cfg(feature = "system-tray")]
+use tauri_utils::Env;
+
 pub mod http;
 /// Create window and system tray menus.
 pub mod menu;
@@ -330,7 +333,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler>;
+  fn system_tray(&self, system_tray: SystemTray, env: &Env) -> Result<Self::TrayHandler>;
 
   /// Registers a system tray event handler.
   #[cfg(feature = "system-tray")]
