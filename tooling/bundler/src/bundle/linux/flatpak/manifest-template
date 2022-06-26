@@ -62,6 +62,7 @@
         }
       ],
       "build-commands": [
+        "cd {{rel_app_dir}}; yarn preflatpak || exit 0",
         {{#if use_node_cli}}
         "cd {{rel_app_dir}}; yarn; yarn tauri build --verbose --bundles none",
         {{else}}
@@ -70,8 +71,9 @@
         "cd {{rel_tauri_dir}}; cargo tauri build --verbose --bundles none",
         {{/if}}
         {{#each binary}}
-        "install -Dm755 {{../rel_project_out_directory}}/{{this}} /app/bin/{{this}}"
+        "install -Dm755 {{../rel_project_out_directory}}/{{this}} /app/bin/{{this}}",
         {{/each}}
+        "cd {{rel_app_dir}}; yarn postflatpak || exit 0"
       ]
     },
     {
