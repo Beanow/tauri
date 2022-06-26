@@ -81,8 +81,8 @@ impl FlatpakInfo {
 fn flatpak_info_try_load_from_file() {
   let path = Path::new(env!("CARGO_MANIFEST_DIR"))
     .to_path_buf()
-    .join("..")
-    .join("tests")
+    .join("test")
+    .join("fixtures")
     .join(".flatpak-info");
 
   let info = FlatpakInfo::try_load_from_file(&path).unwrap();

@@ -7,7 +7,7 @@
 
 use std::fmt::Display;
 
-use semver::Version;
+use semver::{Op, Version};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[cfg(target_os = "linux")]
@@ -111,6 +111,26 @@ pub struct Env {
   /// Flatpak sandbox information from the `/.flatpak-info` file.
   #[cfg(target_os = "linux")]
   pub flatpak_info: Option<flatpak::FlatpakInfo>,
+}
+
+#[cfg(target_os = "linux")]
+use std::path::PathBuf;
+impl Env {
+  /// Will return `Some(Path)` when a different temp_icon_dir is necessary for working tray icons.
+  #[cfg(target_os = "linux")]
+  pub fn override_tray_temp_icon_dir(&self) -> Option<PathBuf> {
+    if let Some(flatpak_info) = &self.flatpak_info {
+      if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
+        return Some(
+          PathBuf::from(runtime_dir)
+            .join("app")
+            .join(&flatpak_info.application_name),
+        );
+      }
+    }
+
+    None
+  }
 }
 
 #[allow(clippy::derivable_impls)]

@@ -30,5 +30,5 @@ incremental = false
 opt-level = "s"
 
 [patch.crates-io]
-# libappindicator = { path = "../../../../libappindicator-rs" }
+tao = { git = "https://github.com/tauri-apps/tao.git", branch = "dev" }
 libappindicator-sys = { git = "https://github.com/Beanow/libappindicator-rs.git", branch = "fix/linker" }

@@ -4,6 +4,7 @@
 
 //! The [`wry`] Tauri [`Runtime`].
 
+use raw_window_handle::HasRawWindowHandle;
 use tauri_runtime::{
   http::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
@@ -27,6 +28,8 @@ use tauri_runtime::{SystemTray, SystemTrayEvent};
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
+#[cfg(all(feature = "system-tray", target_os = "linux"))]
+use wry::application::platform::linux::SystemTrayBuilderExtLinux;
 #[cfg(target_os = "macos")]
 use wry::application::platform::macos::WindowBuilderExtMacOS;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
@@ -36,6 +39,8 @@ use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 
+#[cfg(feature = "system-tray")]
+use tauri_utils::Env;
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
@@ -100,6 +105,8 @@ use std::{
 };
 
 pub type WebviewId = u64;
+type IpcHandler = dyn Fn(&Window, String) + 'static;
+type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 
 mod webview;
 pub use webview::Webview;
@@ -974,18 +981,6 @@ impl From<FileDropEventWrapper> for FileDropEvent {
   }
 }
 
-#[cfg(target_os = "macos")]
-pub struct NSWindow(*mut std::ffi::c_void);
-#[cfg(target_os = "macos")]
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for NSWindow {}
-
-#[cfg(windows)]
-pub struct Hwnd(HWND);
-#[cfg(windows)]
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for Hwnd {}
-
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -1003,6 +998,9 @@ pub struct GtkWindow(gtk::ApplicationWindow);
 ))]
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkWindow {}
+
+pub struct RawWindowHandle(raw_window_handle::RawWindowHandle);
+unsafe impl Send for RawWindowHandle {}
 
 pub enum WindowMessage {
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
@@ -1028,10 +1026,6 @@ pub enum WindowMessage {
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
-  #[cfg(target_os = "macos")]
-  NSWindow(Sender<NSWindow>),
-  #[cfg(windows)]
-  Hwnd(Sender<Hwnd>),
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1040,6 +1034,7 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkWindow(Sender<GtkWindow>),
+  RawWindowHandle(Sender<RawWindowHandle>),
   Theme(Sender<Theme>),
   // Setters
   Center(Sender<Result<()>>),
@@ -1283,16 +1278,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  #[cfg(target_os = "macos")]
-  fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
-    window_getter!(self, WindowMessage::NSWindow).map(|w| w.0)
-  }
-
-  #[cfg(windows)]
-  fn hwnd(&self) -> Result<HWND> {
-    window_getter!(self, WindowMessage::Hwnd).map(|w| w.0)
-  }
-
   fn theme(&self) -> Result<Theme> {
     window_getter!(self, WindowMessage::Theme)
   }
@@ -1307,6 +1292,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
     window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
+  }
+
+  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
+    window_getter!(self, WindowMessage::RawWindowHandle).map(|w| w.0)
   }
 
   // Setters
@@ -1954,7 +1943,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(feature = "system-tray")]
-  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
+  fn system_tray(&self, system_tray: SystemTray, env: &Env) -> Result<Self::TrayHandler> {
     let icon = TrayIcon::try_from(system_tray.icon.expect("tray icon not set"))?;
 
     let mut items = HashMap::new();
@@ -1970,6 +1959,13 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     #[cfg(target_os = "macos")]
     {
       tray_builder = tray_builder.with_icon_as_template(system_tray.icon_as_template);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+      if let Some(dir) = env.override_tray_temp_icon_dir() {
+        tray_builder = tray_builder.with_temp_icon_dir(dir);
+      }
     }
 
     let tray = tray_builder
@@ -2328,10 +2324,6 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::AvailableMonitors(tx) => {
               tx.send(window.available_monitors().collect()).unwrap()
             }
-            #[cfg(target_os = "macos")]
-            WindowMessage::NSWindow(tx) => tx.send(NSWindow(window.ns_window())).unwrap(),
-            #[cfg(windows)]
-            WindowMessage::Hwnd(tx) => tx.send(Hwnd(HWND(window.hwnd() as _))).unwrap(),
             #[cfg(any(
               target_os = "linux",
               target_os = "dragonfly",
@@ -2342,6 +2334,9 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::GtkWindow(tx) => {
               tx.send(GtkWindow(window.gtk_window().clone())).unwrap()
             }
+            WindowMessage::RawWindowHandle(tx) => tx
+              .send(RawWindowHandle(window.raw_window_handle()))
+              .unwrap(),
             WindowMessage::Theme(tx) => {
               #[cfg(any(windows, target_os = "macos"))]
               tx.send(map_theme(&window.theme())).unwrap();
@@ -3067,7 +3062,7 @@ fn create_ipc_handler<T: UserEvent>(
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
   handler: WebviewIpcHandler<T, Wry<T>>,
-) -> Box<dyn Fn(&Window, String) + 'static> {
+) -> Box<IpcHandler> {
   Box::new(move |window, request| {
     let window_id = context.webview_id_map.get(&window.id());
     handler(
@@ -3086,9 +3081,7 @@ fn create_ipc_handler<T: UserEvent>(
 }
 
 /// Create a wry file drop handler.
-fn create_file_drop_handler<T: UserEvent>(
-  context: &Context<T>,
-) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
+fn create_file_drop_handler<T: UserEvent>(context: &Context<T>) -> Box<FileDropHandler> {
   let window_event_listeners = context.window_event_listeners.clone();
   let webview_id_map = context.webview_id_map.clone();
   Box::new(move |window, event| {

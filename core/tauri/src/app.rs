@@ -1437,17 +1437,16 @@ impl<R: Runtime> Builder<R> {
       #[cfg(shell_scope)]
       shell: ShellScope::new(shell_scope),
     });
-    app.manage(env);
 
     #[cfg(windows)]
     {
       if let Some(w) = &app
-        .manager
-        .config()
-        .tauri
-        .bundle
-        .windows
-        .webview_fixed_runtime_path
+      .manager
+      .config()
+      .tauri
+      .bundle
+      .windows
+      .webview_fixed_runtime_path
       {
         if let Some(resource_dir) = app.path_resolver().resource_dir() {
           std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", resource_dir.join(w));
@@ -1474,7 +1473,7 @@ impl<R: Runtime> Builder<R> {
         None
       };
       let mut tray = tray::SystemTray::new()
-        .with_icon(tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"));
+      .with_icon(tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"));
       if let Some(menu) = system_tray.menu {
         tray = tray.with_menu(menu);
       }
@@ -1482,11 +1481,11 @@ impl<R: Runtime> Builder<R> {
       let tray = tray.with_icon_as_template(system_tray_icon_as_template);
 
       let tray_handler = app
-        .runtime
-        .as_ref()
-        .unwrap()
-        .system_tray(tray)
-        .expect("failed to run tray");
+      .runtime
+      .as_ref()
+      .unwrap()
+      .system_tray(tray, &env)
+      .expect("failed to run tray");
 
       let tray_handle = tray::SystemTrayHandle {
         ids: Arc::new(std::sync::Mutex::new(ids)),
@@ -1500,43 +1499,44 @@ impl<R: Runtime> Builder<R> {
         let ids = ids.clone();
         let listener = Arc::new(std::sync::Mutex::new(listener));
         app
-          .runtime
-          .as_mut()
-          .unwrap()
-          .on_system_tray_event(move |event| {
-            let app_handle = app_handle.clone();
-            let event = match event {
-              RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
-                id: ids.lock().unwrap().get(id).unwrap().clone(),
-              },
-              RuntimeSystemTrayEvent::LeftClick { position, size } => {
-                tray::SystemTrayEvent::LeftClick {
-                  position: *position,
-                  size: *size,
-                }
+        .runtime
+        .as_mut()
+        .unwrap()
+        .on_system_tray_event(move |event| {
+          let app_handle = app_handle.clone();
+          let event = match event {
+            RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
+              id: ids.lock().unwrap().get(id).unwrap().clone(),
+            },
+            RuntimeSystemTrayEvent::LeftClick { position, size } => {
+              tray::SystemTrayEvent::LeftClick {
+                position: *position,
+                size: *size,
               }
-              RuntimeSystemTrayEvent::RightClick { position, size } => {
-                tray::SystemTrayEvent::RightClick {
-                  position: *position,
-                  size: *size,
-                }
+            }
+            RuntimeSystemTrayEvent::RightClick { position, size } => {
+              tray::SystemTrayEvent::RightClick {
+                position: *position,
+                size: *size,
               }
-              RuntimeSystemTrayEvent::DoubleClick { position, size } => {
-                tray::SystemTrayEvent::DoubleClick {
-                  position: *position,
-                  size: *size,
-                }
+            }
+            RuntimeSystemTrayEvent::DoubleClick { position, size } => {
+              tray::SystemTrayEvent::DoubleClick {
+                position: *position,
+                size: *size,
               }
-            };
+            }
+          };
             let listener = listener.clone();
             listener.lock().unwrap()(&app_handle, event);
           });
+        }
       }
-    }
+      app.manage(env);
 
-    app.manager.initialize_plugins(&app.handle())?;
+      app.manager.initialize_plugins(&app.handle())?;
 
-    let window_labels = self
+      let window_labels = self
       .pending_windows
       .iter()
       .map(|p| p.label.clone())
