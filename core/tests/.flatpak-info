@@ -1,0 +1,9 @@
+[Application]
+name=app.tauri.tauri-util-tests
+runtime=runtime/org.gnome.Platform/x86_64/42
+
+[Instance]
+instance-id=123456789
+branch=dev
+arch=x86_64
+flatpak-version=1.12.7
