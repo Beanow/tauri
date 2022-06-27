@@ -568,12 +568,12 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl App<crate::Wry> {
-  /// Adds a [`tauri_runtime_wry::Plugin`].
+  /// Adds a [`tauri_runtime_wry::Plugin`] using its [`tauri_runtime_wry::PluginBuilder`].
   ///
   /// # Stability
   ///
   /// This API is unstable.
-  pub fn wry_plugin<P: tauri_runtime_wry::Plugin<EventLoopMessage> + 'static>(
+  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + 'static>(
     &mut self,
     plugin: P,
   ) {
@@ -1440,16 +1440,19 @@ impl<R: Runtime> Builder<R> {
 
     #[cfg(windows)]
     {
-      if let Some(w) = &app
-      .manager
-      .config()
-      .tauri
-      .bundle
-      .windows
-      .webview_fixed_runtime_path
+      if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } = &app
+        .manager
+        .config()
+        .tauri
+        .bundle
+        .windows
+        .webview_install_mode
       {
         if let Some(resource_dir) = app.path_resolver().resource_dir() {
-          std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", resource_dir.join(w));
+          std::env::set_var(
+            "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER",
+            resource_dir.join(path),
+          );
         } else {
           #[cfg(debug_assertions)]
           eprintln!(
