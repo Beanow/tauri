@@ -14,7 +14,6 @@
     "--socket=wayland",
     "--socket=pulseaudio",
     "--device=dri",
-    "--env=LD_LIBRARY_PATH=/app/lib",
     "--talk-name=org.freedesktop.Notifications",
     "--talk-name=org.kde.StatusNotifierWatcher",
     "--talk-name=com.canonical.AppMenu.Registrar",
