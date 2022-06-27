@@ -2,6 +2,7 @@
   import { writable } from 'svelte/store'
   import { open } from '@tauri-apps/api/shell'
   import { appWindow, getCurrent } from '@tauri-apps/api/window'
+  import * as os from '@tauri-apps/api/os'
 
   import Welcome from './views/Welcome.svelte'
   import Cli from './views/Cli.svelte'
@@ -99,12 +100,12 @@
   }
 
   // Window controls
-  let is_window_maximized
+  let isWindowMaximized
   onMount(async () => {
     const window = getCurrent()
-    is_window_maximized = await window.isMaximized()
+    isWindowMaximized = await window.isMaximized()
     listen('tauri://resize', async () => {
-      is_window_maximized = await window.isMaximized()
+      isWindowMaximized = await window.isMaximized()
     })
   })
 
@@ -202,58 +203,72 @@
     document.addEventListener('mouseup', upHandler)
     document.addEventListener('mousemove', moveHandler)
   }
+
+  let isWindows
+  onMount(async () => {
+    isWindows = (await os.platform()) === 'win32'
+  })
 </script>
 
-<div
-  class="w-screen select-none h-8 pl-2 flex justify-between items-center absolute text-primaryText dark:text-darkPrimaryText"
-  data-tauri-drag-region
->
-  <span class="text-darkPrimaryText">Tauri API Validation</span>
-  <span
-    class="
+{#if isWindows}
+  <div
+    class="w-screen select-none h-8 pl-2 flex justify-between items-center absolute text-primaryText dark:text-darkPrimaryText"
+    data-tauri-drag-region
+  >
+    <span class="text-darkPrimaryText">Tauri API Validation</span>
+    <span
+      class="
       h-100%
       children:h-100% children:w-12 children:inline-flex
       children:items-center children:justify-center"
-  >
-    <span
-      class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
-      on:click={toggleDark}
     >
-      {#if isDark}
-        <div class="i-ph-moon" />
-      {:else}
-        <div class="i-ph-sun" />
-      {/if}
+      <span
+        title={isDark ? 'Switch to Light mode' : 'Switch to Dark mode'}
+        class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
+        on:click={toggleDark}
+      >
+        {#if isDark}
+          <div class="i-ph-sun" />
+        {:else}
+          <div class="i-ph-moon" />
+        {/if}
+      </span>
+      <span
+        title="Minimize"
+        class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
+        on:click={minimize}
+      >
+        <div class="i-codicon-chrome-minimize" />
+      </span>
+      <span
+        title={isWindowMaximized ? 'Restore' : 'Maximize'}
+        class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
+        on:click={toggleMaximize}
+      >
+        {#if isWindowMaximized}
+          <div class="i-codicon-chrome-restore" />
+        {:else}
+          <div class="i-codicon-chrome-maximize" />
+        {/if}
+      </span>
+      <span
+        title="Close"
+        class="hover:bg-red-700 dark:hover:bg-red-700 hover:text-darkPrimaryText"
+        on:click={close}
+      >
+        <div class="i-codicon-chrome-close" />
+      </span>
     </span>
-    <span
-      class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
-      on:click={minimize}
-    >
-      <div class="i-codicon-chrome-minimize" />
-    </span>
-    <span
-      class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
-      on:click={toggleMaximize}
-    >
-      {#if is_window_maximized}
-        <div class="i-codicon-chrome-restore" />
-      {:else}
-        <div class="i-codicon-chrome-maximize" />
-      {/if}
-    </span>
-    <span
-      class="hover:bg-red-700 dark:hover:bg-red-700 hover:text-darkPrimaryText"
-      on:click={close}
-    >
-      <div class="i-codicon-chrome-close" />
-    </span>
-  </span>
-</div>
+  </div>
+{/if}
+
 <div
   class="flex h-screen w-screen overflow-hidden children-pt8 children-pb-2 text-primaryText dark:text-darkPrimaryText"
 >
   <aside
-    class="w-75 bg-darkPrimaryLighter/60 transition-colors-250 overflow-hidden grid select-none px-2"
+    class="w-75 {isWindows
+      ? 'bg-darkPrimaryLighter/60'
+      : 'bg-darkPrimaryLighter'} transition-colors-250 overflow-hidden grid select-none px-2"
   >
     <img
       on:click={() => open('https://tauri.app/')}
@@ -261,6 +276,21 @@
       src="tauri_logo.png"
       alt="Tauri logo"
     />
+    {#if !isWindows}
+      <a href="##" class="nv justify-between h-8" on:click={toggleDark}>
+        {#if isDark}
+          Switch to Light mode
+          <div class="i-ph-sun" />
+        {:else}
+          Switch to Dark mode
+          <div class="i-ph-moon" />
+        {/if}
+      </a>
+      <br />
+      <div class="bg-white/5 h-2px" />
+      <br />
+    {/if}
+
     <a
       class="nv justify-between h-8"
       target="_blank"
@@ -340,7 +370,7 @@
           <div class="i-codicon-clear-all" />
         </div>
       </div>
-      <div class="px-2 overflow-y-auto all:font-[monospace]">
+      <div class="px-2 overflow-y-auto all:font-mono">
         {#each $messages as r}
           {@html r.html}
         {/each}
