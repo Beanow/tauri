@@ -14,8 +14,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
 use tauri::{
-  api::dialog::ask, window::WindowBuilder, CustomMenuItem, GlobalShortcutManager, Manager,
-  RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowEvent, WindowUrl,
+  api::dialog::ask, api::shell, window::WindowBuilder, CustomMenuItem, GlobalShortcutManager,
+  Manager, RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowEvent, WindowUrl,
 };
 
 #[derive(Clone, Serialize)]
@@ -48,6 +48,13 @@ fn main() {
     .setup(|app| {
       #[cfg(debug_assertions)]
       app.get_window("main").unwrap().open_devtools();
+
+      // open the given URL on the system default browser
+      shell::open(
+        &app.shell_scope(),
+        "https://github.com/tauri-apps/tauri#from-portal",
+        Some(shell::Protocol::XdgDesktopPortal(None)),
+      )?;
 
       std::thread::spawn(|| {
         let server = match tiny_http::Server::http("localhost:3003") {

@@ -206,7 +206,7 @@ impl Cmd {
     with
       .as_deref()
       // only allow pre-determined programs to be specified
-      .map(crate::api::shell::Program::from_str)
+      .map(crate::api::shell::OpenWith::from_str)
       .transpose()
       .map_err(Into::into)
       // validate and open path

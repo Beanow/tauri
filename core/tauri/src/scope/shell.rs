@@ -5,9 +5,12 @@
 #[cfg(any(shell_execute, shell_sidecar))]
 use crate::api::process::Command;
 #[cfg(feature = "shell-open-api")]
-use crate::api::shell::Program;
+use crate::api::shell::{OpenWith, Protocol};
+#[cfg(feature = "shell-open-api")]
+use crate::portals::portal_open_uri;
 
 use regex::Regex;
+use tauri_utils::Env;
 
 use std::collections::HashMap;
 
@@ -191,9 +194,18 @@ pub enum ScopeError {
   Io(#[from] std::io::Error),
 }
 
+fn _add_appimage_restrictions(scope: ScopeConfig) -> ScopeConfig {
+  scope
+}
+
 impl Scope {
   /// Creates a new shell scope.
-  pub(crate) fn new(scope: ScopeConfig) -> Self {
+  pub(crate) fn new(scope: ScopeConfig, env: &Env) -> Self {
+    let mut scope = scope;
+    #[cfg(target_os = "linux")]
+    if env.is_probably_appimage() {
+      scope = _add_appimage_restrictions(scope);
+    }
     Self(scope)
   }
 
@@ -292,7 +304,7 @@ impl Scope {
   /// The path is validated against the `tauri > allowlist > shell > open` validation regex, which
   /// defaults to `^https?://`.
   #[cfg(feature = "shell-open-api")]
-  pub fn open(&self, path: &str, with: Option<Program>) -> Result<(), ScopeError> {
+  pub fn open(&self, path: &str, with: Option<OpenWith>) -> Result<(), ScopeError> {
     // ensure we pass validation if the configuration has one
     if let Some(regex) = &self.0.open {
       if !regex.is_match(path) {
@@ -303,12 +315,13 @@ impl Scope {
       }
     }
 
-    // The prevention of argument escaping is handled by the usage of std::process::Command::arg by
-    // the `open` dependency. This behavior should be re-confirmed during upgrades of `open`.
-    match with.map(Program::name) {
-      Some(program) => ::open::with(&path, program),
-      None => ::open::that(&path),
+    // Protocols that are not executed as shell programs.
+    match with {
+      Some(OpenWith::Protocol(protocol)) => match protocol {
+        Protocol::XdgDesktopPortal(opt) => portal_open_uri(path, opt),
+      },
+      Some(OpenWith::Program(program)) => open::with(&path, program.name()).map_err(Into::into),
+      None => ::open::that(&path).map_err(Into::into), // TODO: add ability to prefer portals as the default option.
     }
-    .map_err(Into::into)
   }
 }

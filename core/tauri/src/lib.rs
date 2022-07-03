@@ -173,6 +173,7 @@ pub mod window;
 use tauri_runtime as runtime;
 /// The allowlist scopes.
 pub mod scope;
+mod portals;
 mod state;
 #[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
