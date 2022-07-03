@@ -107,6 +107,18 @@ pub struct Env {
   pub appdir: Option<std::ffi::OsString>,
 }
 
+impl Env {
+  /// Whether or not we're probably running as an AppImage.
+  ///
+  /// Security note: creating an AppImage-like environment to trick the application is easy.
+  /// So as the function name suggests, we cannot make hard assumptions.
+  /// We can use this function for a better desktop integration and user experience.
+  #[cfg(target_os = "linux")]
+  pub fn is_probably_appimage(&self) -> bool {
+    self.appimage.is_some() || self.appdir.is_some()
+  }
+}
+
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
